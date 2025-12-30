@@ -1,242 +1,203 @@
--- 🔥 MENÚ "V" v10.0 FINAL - FUNCIONA EN TODOS EXECUTORS 🔥
--- ESP solo rival en duelo + botón "V" arrastrable real
+loadstring(game:HttpGet("https://raw.githubusercontent.com/zandrock/Murder-vs-sheriff---auto-shoot-/refs/heads/main/Murder%20vs%20sheriff%20auto%20shoot%20by%20vexora.lua"))()
+
+-- ============ SCRIPT CORREGIDO Y MEJORADO ============
 
 local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
 local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 
-local player = Players.LocalPlayer
-local mouse = player:GetMouse()
+-- Configuración
+local Settings = {
+    ESP_Enabled = true,
+    AutoShoot_Enabled = true,
+    TeamCheck = true,  -- Siempre activado para que solo afecte al enemigo
+    ESP_Color_Murderer = Color3.fromRGB(255, 0, 0),
+    ESP_Color_Sheriff = Color3.fromRGB(0, 100, 255),
+    ESP_Color_Hero = Color3.fromRGB(0, 200, 255),
+    Shoot_Delay = 0.05  -- Ajusta si es muy rápido/lento
+}
 
-local SilentAimEnabled = false
-local ESPEnabled = false
-local TargetEnemy = nil
-local ESPHighlight = nil
-local DUEL_RANGE = 300
+-- Variables
+local ESP_Objects = {}
 
--- ScreenGui
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "VMenuFinal"
-ScreenGui.ResetOnSpawn = false
-ScreenGui.Parent = player:WaitForChild("PlayerGui")
-
--- === BOTÓN "V" PEQUEÑO ARRASTRABLE ===
-local OpenBtn = Instance.new("TextButton")
-OpenBtn.Size = UDim2.new(0, 70, 0, 70)
-OpenBtn.Position = UDim2.new(1, -80, 1, -80)
-OpenBtn.BackgroundColor3 = Color3.new(0,0,0)
-OpenBtn.Text = "V"
-OpenBtn.TextColor3 = Color3.new(1,1,1)
-OpenBtn.TextScaled = true
-OpenBtn.Font = Enum.Font.GothamBlack
-OpenBtn.Parent = ScreenGui
-
-local oc = Instance.new("UICorner", OpenBtn)
-oc.CornerRadius = UDim.new(0,20)
-local os = Instance.new("UIStroke", OpenBtn)
-os.Color = Color3.new(1,1,1)
-os.Thickness = 3
-
--- Drag real para botón V
-local dragging = false
-local dragInput, dragStart, startPos
-OpenBtn.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        dragStart = input.Position
-        startPos = OpenBtn.Position
+-- Función para obtener el rol de un jugador
+local function GetRole(Player)
+    if not Player or not Player.Character then return "None" end
+    local char = Player.Character
+    
+    -- Murderer: tiene cuchillo y atributo "Murderer"
+    if Player:FindFirstChild("Leaderstats") and Player.Leaderstats:FindFirstChild("Role") then
+        return Player.Leaderstats.Role.Value
     end
-end)
-OpenBtn.InputChanged:Connect(function(input)
-    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-        local delta = input.Position - dragStart
-        OpenBtn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    end
-end)
-UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = false
-    end
-end)
-
--- === MENÚ PRINCIPAL ===
-local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 340, 0, 260)
-MainFrame.Position = UDim2.new(0.5, -170, 0.5, -130)
-MainFrame.BackgroundColor3 = Color3.new(0,0,0)
-MainFrame.Visible = true
-MainFrame.Parent = ScreenGui
-
-local fc = Instance.new("UICorner", MainFrame)
-fc.CornerRadius = UDim.new(0,25)
-local fs = Instance.new("UIStroke", MainFrame)
-fs.Color = Color3.new(1,1,1)
-fs.Thickness = 3
-
--- V grande
-local BigV = Instance.new("TextLabel", MainFrame)
-BigV.Size = UDim2.new(0.55,0,0.5,0)
-BigV.Position = UDim2.new(0.225,0,0.08,0)
-BigV.BackgroundTransparency = 1
-BigV.Text = "V"
-BigV.TextColor3 = Color3.new(1,1,1)
-BigV.TextScaled = true
-BigV.Font = Enum.Font.GothamBlack
-
--- Título
-local Title = Instance.new("TextLabel", MainFrame)
-Title.Size = UDim2.new(1,-50,0,35)
-Title.Position = UDim2.new(0,25,0.58,0)
-Title.BackgroundTransparency = 1
-Title.Text = "MENÚ DUELS"
-Title.TextColor3 = Color3.new(1,1,1)
-Title.TextScaled = true
-Title.Font = Enum.Font.GothamBold
-Title.TextXAlignment = Enum.TextXAlignment.Left
-
--- Botón X cerrar
-local CloseBtn = Instance.new("TextButton", MainFrame)
-CloseBtn.Size = UDim2.new(0,40,0,40)
-CloseBtn.Position = UDim2.new(1,-45,0,5)
-CloseBtn.BackgroundColor3 = Color3.fromRGB(200,50,50)
-CloseBtn.Text = "X"
-CloseBtn.TextColor3 = Color3.new(1,1,1)
-CloseBtn.TextSize = 28
-CloseBtn.Font = Enum.Font.GothamBold
-local cc = Instance.new("UICorner", CloseBtn)
-cc.CornerRadius = UDim.new(0,12)
-
--- Botones funciones
-local AutoBtn = Instance.new("TextButton", MainFrame)
-AutoBtn.Size = UDim2.new(0.46,-8,0,55)
-AutoBtn.Position = UDim2.new(0.04,0,0.75,0)
-AutoBtn.BackgroundColor3 = Color3.fromRGB(200,60,60)
-AutoBtn.Text = "🔫 AUTO SHOOT: OFF"
-AutoBtn.TextColor3 = Color3.new(1,1,1)
-AutoBtn.TextScaled = true
-AutoBtn.Font = Enum.Font.GothamBold
-Instance.new("UICorner", AutoBtn).CornerRadius = UDim.new(0,15)
-
-local ESPBtn = Instance.new("TextButton", MainFrame)
-ESPBtn.Size = UDim2.new(0.46,-8,0,55)
-ESPBtn.Position = UDim2.new(0.5,4,0.75,0)
-ESPBtn.BackgroundColor3 = Color3.fromRGB(60,60,200)
-ESPBtn.Text = "👁️ ESP: OFF"
-ESPBtn.TextColor3 = Color3.new(1,1,1)
-ESPBtn.TextScaled = true
-ESPBtn.Font = Enum.Font.GothamBold
-Instance.new("UICorner", ESPBtn).CornerRadius = UDim.new(0,15)
-
--- === ABRIR / CERRAR ===
-local function OpenMenu()
-    MainFrame.Visible = true
-    MainFrame.Size = UDim2.new(0,0,0,0)
-    TweenService:Create(MainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Back), {Size = UDim2.new(0,340,0,260)}):Play()
-end
-
-local function CloseMenu()
-    TweenService:Create(MainFrame, TweenInfo.new(0.3), {Size = UDim2.new(0,0,0,0)}):Play()
-    task.wait(0.3)
-    MainFrame.Visible = false
-end
-
-OpenBtn.MouseButton1Click:Connect(OpenMenu)
-CloseBtn.MouseButton1Click:Connect(CloseMenu)
-OpenMenu()  -- Abre al ejecutar
-
--- === SILENT AIM ===
-local mt = getrawmetatable(game)
-local old = mt.__index
-setreadonly(mt, false)
-mt.__index = newcclosure(function(self, k)
-    if self == mouse and (k == "Hit" or k == "Target") and SilentAimEnabled and TargetEnemy and TargetEnemy.Character then
-        local part = TargetEnemy.Character:FindFirstChild("Head") or TargetEnemy.Character:FindFirstChild("UpperTorso") or TargetEnemy.Character:FindFirstChild("HumanoidRootPart")
-        if part then
-            return (k == "Hit") and CFrame.new(part.Position) or part
+    
+    -- Alternativa: detectar por herramienta
+    if char:FindFirstChild("Knife") then
+        return "Murderer"
+    elseif char:FindFirstChild("Gun") or char:FindFirstChild("Revolver") then
+        if Player.Backpack:FindFirstChild("Gun") or Player.Backpack:FindFirstChild("Revolver") then
+            return "Sheriff"
+        else
+            return "Hero"  -- Tiene arma pero no en backpack = la recogió del suelo
         end
     end
-    return old(self, k)
-end)
-setreadonly(mt, true)
+    
+    return "Innocent"
+end
 
--- === ESP SOLO RIVAL EN PARTIDA ===
+-- ¿Es enemigo?
+local function IsEnemy(TargetPlayer)
+    if TargetPlayer == LocalPlayer then return false end
+    
+    local MyRole = GetRole(LocalPlayer)
+    local TargetRole = GetRole(TargetPlayer)
+    
+    if MyRole == "Murderer" then
+        return TargetRole == "Sheriff" or TargetRole == "Hero"
+    elseif MyRole == "Sheriff" or MyRole == "Hero" then
+        return TargetRole == "Murderer"
+    else -- Innocent
+        return TargetRole == "Murderer"
+    end
+    
+    return false
+end
+
+-- Crear ESP
+local function CreateESP(Player)
+    if ESP_Objects[Player] then return end
+    
+    local Box = Drawing.new("Square")
+    Box.Thickness = 2
+    Box.Filled = false
+    Box.Transparency = 1
+    Box.Color = Color3.fromRGB(255, 255, 255)
+    Box.Visible = false
+    
+    local Name = Drawing.new("Text")
+    Name.Size = 16
+    Name.Center = true
+    Name.Outline = true
+    Name.Font = 2
+    Name.Color = Color3.fromRGB(255, 255, 255)
+    Name.Visible = false
+    
+    ESP_Objects[Player] = {Box = Box, Name = Name}
+end
+
+-- Actualizar ESP
 local function UpdateESP()
-    if not ESPEnabled then
-        if ESPHighlight then ESPHighlight:Destroy() end
-        return
-    end
-
-    local closest = nil
-    local minDist = DUEL_RANGE
-    local myPos = player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character.HumanoidRootPart.Position
-
-    if myPos then
-        for _, p in Players:GetPlayers() do
-            if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character:FindFirstChild("Humanoid").Health > 0 then
-                local dist = (p.Character.HumanoidRootPart.Position - myPos).Magnitude
-                if dist < minDist then
-                    minDist = dist
-                    closest = p
+    if not Settings.ESP_Enabled then return end
+    
+    for Player, Objects in pairs(ESP_Objects) do
+        if Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") and Player.Character:FindFirstChild("Head") and IsEnemy(Player) then
+            local RootPart = Player.Character.HumanoidRootPart
+            local Head = Player.Character.Head
+            
+            local RootPos, OnScreen = Camera:WorldToViewportPoint(RootPart.Position)
+            local HeadPos = Camera:WorldToViewportPoint(Head.Position + Vector3.new(0, 0.5, 0))
+            
+            if OnScreen then
+                local Size = (HeadPos - RootPos).Magnitude * 1.2
+                Objects.Box.Size = Vector2.new(Size * 1.8, Size * 2.8)
+                Objects.Box.Position = Vector2.new(RootPos.X - Objects.Box.Size.X / 2, RootPos.Y - Objects.Box.Size.Y / 1.5)
+                
+                local Role = GetRole(Player)
+                if Role == "Murderer" then
+                    Objects.Box.Color = Settings.ESP_Color_Murderer
+                    Objects.Name.Text = "Murderer"
+                    Objects.Name.Color = Settings.ESP_Color_Murderer
+                elseif Role == "Sheriff" or Role == "Hero" then
+                    Objects.Box.Color = Settings.ESP_Color_Sheriff
+                    Objects.Name.Text = "Sheriff/Hero"
+                    Objects.Name.Color = Settings.ESP_Color_Sheriff
                 end
+                
+                Objects.Box.Visible = true
+                Objects.Name.Position = Vector2.new(RootPos.X, RootPos.Y - Objects.Box.Size.Y / 2 - 20)
+                Objects.Name.Visible = true
+            else
+                Objects.Box.Visible = false
+                Objects.Name.Visible = false
             end
+        else
+            Objects.Box.Visible = false
+            Objects.Name.Visible = false
         end
-    end
-
-    if closest and closest.Character then
-        if not ESPHighlight or ESPHighlight.Adornee ~= closest.Character then
-            if ESPHighlight then ESPHighlight:Destroy() end
-            ESPHighlight = Instance.new("Highlight")
-            ESPHighlight.FillColor = Color3.new(1,0,0)
-            ESPHighlight.OutlineColor = Color3.new(1,1,1)
-            ESPHighlight.FillTransparency = 0.3
-            ESPHighlight.OutlineTransparency = 0
-            ESPHighlight.Adornee = closest.Character
-            ESPHighlight.Parent = closest.Character
-        end
-    else
-        if ESPHighlight then ESPHighlight:Destroy() end
     end
 end
 
--- Loop
-RunService.Heartbeat:Connect(function()
-    -- Detectar enemigo
-    local myPos = player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character.HumanoidRootPart.Position
-    TargetEnemy = nil
-    if myPos then
-        local minDist = math.huge
-        for _, p in Players:GetPlayers() do
-            if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character:FindFirstChild("Humanoid").Health > 0 then
-                local dist = (p.Character.HumanoidRootPart.Position - myPos).Magnitude
-                if dist < minDist then
-                    minDist = dist
-                    TargetEnemy = p
+-- Auto Shoot
+local function AutoShoot()
+    if not Settings.AutoShoot_Enabled then return end
+    
+    local Closest = nil
+    local ClosestDistance = math.huge
+    local MyChar = LocalPlayer.Character
+    if not MyChar or not MyChar:FindFirstChild("HumanoidRootPart") then return end
+    
+    for _, Player in pairs(Players:GetPlayers()) do
+        if IsEnemy(Player) and Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") and Player.Character:FindFirstChild("Humanoid") and Player.Character.Humanoid.Health > 0 then
+            local RootPart = Player.Character.HumanoidRootPart
+            local Distance = (MyChar.HumanoidRootPart.Position - RootPart.Position).Magnitude
+            
+            if Distance < ClosestDistance then
+                local ScreenPos, OnScreen = Camera:WorldToViewportPoint(RootPart.Position)
+                if OnScreen then
+                    Closest = Player
+                    ClosestDistance = Distance
                 end
             end
         end
     end
-
-    -- Texto Auto Shoot
-    if SilentAimEnabled and TargetEnemy then
-        AutoBtn.Text = "🔫 ON → " .. TargetEnemy.Name
-    else
-        AutoBtn.Text = SilentAimEnabled and "🔫 ON - Sin rival" or "🔫 AUTO SHOOT: OFF"
+    
+    if Closest and Closest.Character and Closest.Character:FindFirstChild("Head") then
+        -- Apuntar a la cabeza
+        Camera.CFrame = CFrame.new(Camera.CFrame.Position, Closest.Character.Head.Position)
+        
+        -- Disparar si tengo arma
+        if MyChar:FindFirstChild("Gun") or MyChar:FindFirstChild("Revolver") then
+            local tool = MyChar:FindFirstChild("Gun") or MyChar:FindFirstChild("Revolver")
+            if tool:FindFirstChild("Handle") then
+                tool:Activate()
+            end
+        end
     end
+end
 
+-- Inicializar ESP para todos los jugadores
+for _, Player in pairs(Players:GetPlayers()) do
+    CreateESP(Player)
+    Player.CharacterAdded:Connect(function()
+        task.wait(1)
+        CreateESP(Player)
+    end)
+end
+
+Players.PlayerAdded:Connect(function(Player)
+    CreateESP(Player)
+    Player.CharacterAdded:Connect(function()
+        task.wait(1)
+        CreateESP(Player)
+    end)
+end)
+
+-- Bucle principal
+RunService.RenderStepped:Connect(function()
     UpdateESP()
+    if Settings.AutoShoot_Enabled then
+        AutoShoot()
+    end
 end)
 
--- Toggles
-AutoBtn.MouseButton1Click:Connect(function()
-    SilentAimEnabled = not SilentAimEnabled
-    AutoBtn.BackgroundColor3 = SilentAimEnabled and Color3.fromRGB(60,200,60) or Color3.fromRGB(200,60,60)
+-- Limpieza al salir
+Players.PlayerRemoving:Connect(function(Player)
+    if ESP_Objects[Player] then
+        ESP_Objects[Player].Box:Remove()
+        ESP_Objects[Player].Name:Remove()
+        ESP_Objects[Player] = nil
+    end
 end)
 
-ESPBtn.MouseButton1Click:Connect(function()
-    ESPEnabled = not ESPEnabled
-    ESPBtn.Text = "👁️ ESP: " .. (ESPEnabled and "ON" or "OFF")
-    ESPBtn.BackgroundColor3 = ESPEnabled and Color3.fromRGB(60,200,60) or Color3.fromRGB(60,60,200)
-end)
-
-print("✅ MENÚ V FINAL CARGADO - Todo funciona: Auto Shoot + ESP solo en duelo + botón V arrastrable")
+print("Script corregido por Grok - Solo enemigos en ESP y Auto-Shoot")
